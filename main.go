@@ -96,6 +96,10 @@ type Config struct {
 }
 
 func initTTL() {
+	if CONFIG_FILE == "" {
+		info("CONFIG_FILE is not specified")
+		return
+	}
 	f, err := os.Open(CONFIG_FILE)
 	if err != nil {
 		fatal("Open(%s) failed: %v", CONFIG_FILE, err)
