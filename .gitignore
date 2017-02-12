@@ -1,3 +1,4 @@
 /Meta
+/ca-certificates.crt
 slack-blackhole
 *.log
