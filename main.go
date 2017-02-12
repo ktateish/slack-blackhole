@@ -1,14 +1,14 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
 	"flag"
+	"fmt"
+	"io/ioutil"
 	logpkg "log"
 	"os"
 	"strconv"
 	"time"
-	"encoding/json"
-	"io/ioutil"
 
 	"github.com/nlopes/slack"
 )
@@ -16,19 +16,19 @@ import (
 var (
 	log *logpkg.Logger
 
-	API_READY <-chan time.Time
-	RTM       *slack.RTM
+	API_READY    <-chan time.Time
+	RTM          *slack.RTM
 	CONFIG_BY_ID map[string]Config
 
 	// flags
-	CONFIG_FILE        string
-	DEBUG              bool
-	DEBUG_SLACK              bool
-	DEFAULT_FILE_TTL   int
-	DEFAULT_MESSAGE_TTL   int
-	DRY_RUN            bool
-	SLACK_API_TOKEN    string
-	SLACK_API_INTERVAL int
+	CONFIG_FILE         string
+	DEBUG               bool
+	DEBUG_SLACK         bool
+	DEFAULT_FILE_TTL    int
+	DEFAULT_MESSAGE_TTL int
+	DRY_RUN             bool
+	SLACK_API_TOKEN     string
+	SLACK_API_INTERVAL  int
 )
 
 func initLog() {
@@ -39,19 +39,19 @@ func debug(fmtstr string, args ...interface{}) {
 	if !DEBUG {
 		return
 	}
-	log.Printf("D: " + fmtstr, args...)
+	log.Printf("D: "+fmtstr, args...)
 }
 
 func info(fmtstr string, args ...interface{}) {
-	log.Printf("I: " + fmtstr, args...)
+	log.Printf("I: "+fmtstr, args...)
 }
 
 func errorlog(fmtstr string, args ...interface{}) {
-	log.Printf("E: " + fmtstr, args...)
+	log.Printf("E: "+fmtstr, args...)
 }
 
 func fatal(fmtstr string, args ...interface{}) {
-	log.Fatalf("F: " + fmtstr, args...)
+	log.Fatalf("F: "+fmtstr, args...)
 }
 
 func jsonString(v interface{}) string {
@@ -169,7 +169,7 @@ func handleMessage(ch string, msg *slack.Message) {
 	}
 	cfgttl := CONFIG_BY_ID[ch].MessageTTL
 	ttl := DEFAULT_MESSAGE_TTL
-	if  cfgttl > 0 {
+	if cfgttl > 0 {
 		ttl = cfgttl
 	}
 	debug("Message %s(%s): cfgttl..%d ttl..%d", ch, msg.Timestamp, cfgttl, ttl)
@@ -219,7 +219,7 @@ func handleFile(file *slack.File) {
 	ch := file.Channels[0]
 	cfgttl := CONFIG_BY_ID[ch].FileTTL
 	ttl := DEFAULT_FILE_TTL
-	if  cfgttl > 0 {
+	if cfgttl > 0 {
 		ttl = cfgttl
 	}
 	if ttl > 0 {
@@ -332,7 +332,7 @@ func inspectPast() {
 	}
 	info("There are %d channels", len(channels))
 	for _, ch := range channels {
-		if (DEFAULT_MESSAGE_TTL == 0 && CONFIG_BY_ID[ch.ID].MessageTTL == 0) {
+		if DEFAULT_MESSAGE_TTL == 0 && CONFIG_BY_ID[ch.ID].MessageTTL == 0 {
 			continue
 		}
 		inspectHistory(ch)
