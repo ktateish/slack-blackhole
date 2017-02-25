@@ -158,11 +158,12 @@ func deleteMessage(ch string, msg *slack.Message, ttl int) {
 	info("Message %s(%s) will be deleted at %v", ch, ts, tbd)
 	go func() {
 		<-time.After(tbd.Sub(time.Now()))
-		if !DRY_RUN {
-			<-API_READY
-			RTM.DeleteMessage(ch, ts)
-		}
 		info("Deleted message: %s(%s)", ch, ts)
+		if DRY_RUN {
+			return
+		}
+		<-API_READY
+		RTM.DeleteMessage(ch, ts)
 	}()
 }
 
@@ -195,11 +196,12 @@ func deleteFile(file *slack.File, ttl int) {
 	info("File %s (name='%s' title='%s') created %v (ttl=%d) will be deleted at %v", file.ID, file.Name, file.Title, ts, ttl, tbd)
 	go func() {
 		<-time.After(tbd.Sub(time.Now()))
-		if !DRY_RUN {
-			<-API_READY
-			RTM.DeleteFile(file.ID)
-		}
 		info("Deleted File: id=%s name='%s' title='%s'", file.ID, file.Name, file.Title)
+		if DRY_RUN {
+			return
+		}
+		<-API_READY
+		RTM.DeleteFile(file.ID)
 	}()
 }
 
