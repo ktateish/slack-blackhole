@@ -27,6 +27,7 @@ var (
 	DEFAULT_FILE_TTL    int
 	DEFAULT_MESSAGE_TTL int
 	DRY_RUN             bool
+	MAX_RETRIES         int
 	SLACK_API_TOKEN     string
 	SLACK_API_INTERVAL  int
 )
@@ -279,6 +280,15 @@ func readEnv() {
 	if dry_run != "" {
 		DRY_RUN = true
 	}
+	max_retries := os.Getenv("BLACKHOLE_MAX_RETRIES")
+	if max_retries != "" {
+		val, err := strconv.ParseInt(max_retries, 0, 0)
+		if err != nil {
+			errorlog("BLACKHOLE_MAX_RETRIES=%s: ParseInt failed. Use default value(%d): %v", max_retries, MAX_RETRIES, err)
+		} else {
+			MAX_RETRIES = int(val)
+		}
+	}
 	sai := os.Getenv("BLACKHOLE_SLACK_API_INTERVAL")
 	if sai != "" {
 		val, err := strconv.ParseInt(sai, 0, 0)
@@ -356,6 +366,7 @@ func init() {
 	flag.IntVar(&DEFAULT_MESSAGE_TTL, "default-message-ttl", 0, "TTL of messages for all channel")
 	flag.IntVar(&DEFAULT_FILE_TTL, "default-file-ttl", 0, "TTL of files for all channel")
 	flag.BoolVar(&DRY_RUN, "dry-run", false, "Do not delete messages/files")
+	flag.IntVar(&MAX_RETRIES, "max-retries", 5, "Maximum number of retries for message/file deletion")
 	flag.IntVar(&SLACK_API_INTERVAL, "slack-api-interval", 3, "Interval (sec) for api call")
 	flag.StringVar(&SLACK_API_TOKEN, "slack-api-token", "", "Slack API token")
 	readEnv()
