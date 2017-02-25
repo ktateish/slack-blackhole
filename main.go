@@ -149,19 +149,20 @@ func toBeDeleted(timeStamp string, ttl int) (time.Time, error) {
 }
 
 func deleteMessage(ch string, msg *slack.Message, ttl int) {
-	tbd, err := toBeDeleted(msg.Timestamp, ttl)
+	ts := msg.Timestamp
+	tbd, err := toBeDeleted(ts, ttl)
 	if err != nil {
-		errorlog("toBeDeleted() for message %s(%s) failed: %v", ch, msg.Timestamp, err)
+		errorlog("toBeDeleted() for message %s(%s) failed: %v", ch, ts, err)
 		return
 	}
-	info("Message %s(%s) will be deleted at %v", ch, msg.Timestamp, tbd)
+	info("Message %s(%s) will be deleted at %v", ch, ts, tbd)
 	go func() {
 		<-time.After(tbd.Sub(time.Now()))
 		if !DRY_RUN {
 			<-API_READY
-			RTM.DeleteMessage(ch, msg.Timestamp)
+			RTM.DeleteMessage(ch, ts)
 		}
-		info("Deleted message: %s(%s)", ch, msg.Timestamp)
+		info("Deleted message: %s(%s)", ch, ts)
 	}()
 }
 
