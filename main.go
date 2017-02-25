@@ -27,6 +27,7 @@ var (
 	DEFAULT_FILE_TTL    int
 	DEFAULT_MESSAGE_TTL int
 	DRY_RUN             bool
+	MAX_RETRIES         int
 	SLACK_API_TOKEN     string
 	SLACK_API_INTERVAL  int
 )
@@ -149,19 +150,34 @@ func toBeDeleted(timeStamp string, ttl int) (time.Time, error) {
 }
 
 func deleteMessage(ch string, msg *slack.Message, ttl int) {
-	tbd, err := toBeDeleted(msg.Timestamp, ttl)
+	ts := msg.Timestamp
+	tbd, err := toBeDeleted(ts, ttl)
 	if err != nil {
-		errorlog("toBeDeleted() for message %s(%s) failed: %v", ch, msg.Timestamp, err)
+		errorlog("toBeDeleted() for message %s(%s) failed: %v", ch, ts, err)
 		return
 	}
-	info("Message %s(%s) will be deleted at %v", ch, msg.Timestamp, tbd)
+	info("Message %s(%s) will be deleted at %v", ch, ts, tbd)
 	go func() {
 		<-time.After(tbd.Sub(time.Now()))
-		if !DRY_RUN {
-			<-API_READY
-			RTM.DeleteMessage(ch, msg.Timestamp)
+		info("Delete message: %s(%s)", ch, ts)
+		if DRY_RUN {
+			return
 		}
-		info("Deleted message: %s(%s)", ch, msg.Timestamp)
+
+		backoff := time.Duration(1) * time.Second
+		for i := 0; i < MAX_RETRIES; i++ {
+			<-API_READY
+			_, _, err = RTM.DeleteMessage(ch, ts)
+			if err != nil && err.Error() != "message_not_found" {
+				errorlog("DeleteMessage(%s, %s) failed: %v", ch, ts, err)
+			} else {
+				info("Message deleted: %s(%s)", ch, ts)
+				return
+			}
+			<-time.After(backoff)
+			backoff *= 2
+		}
+		errorlog("Failed to delete message %s(%s) for %d times", ch, ts, MAX_RETRIES)
 	}()
 }
 
@@ -194,11 +210,24 @@ func deleteFile(file *slack.File, ttl int) {
 	info("File %s (name='%s' title='%s') created %v (ttl=%d) will be deleted at %v", file.ID, file.Name, file.Title, ts, ttl, tbd)
 	go func() {
 		<-time.After(tbd.Sub(time.Now()))
-		if !DRY_RUN {
-			<-API_READY
-			RTM.DeleteFile(file.ID)
+		info("Delete File: id=%s name='%s' title='%s'", file.ID, file.Name, file.Title)
+		if DRY_RUN {
+			return
 		}
-		info("Deleted File: id=%s name='%s' title='%s'", file.ID, file.Name, file.Title)
+		backoff := time.Duration(1) * time.Second
+		for i := 0; i < MAX_RETRIES; i++ {
+			<-API_READY
+			err := RTM.DeleteFile(file.ID)
+			if err != nil && err.Error() != "file_deleted" {
+				errorlog("DeleteFile(%s) failed: %v", file.ID, err)
+			} else {
+				info("File deleted: %s", file.ID)
+				return
+			}
+			<-time.After(backoff)
+			backoff *= 2
+		}
+		errorlog("Failed to delete file %s for %d times", file.ID, MAX_RETRIES)
 	}()
 }
 
@@ -275,6 +304,15 @@ func readEnv() {
 	dry_run := os.Getenv("BLACKHOLE_DRY_RUN")
 	if dry_run != "" {
 		DRY_RUN = true
+	}
+	max_retries := os.Getenv("BLACKHOLE_MAX_RETRIES")
+	if max_retries != "" {
+		val, err := strconv.ParseInt(max_retries, 0, 0)
+		if err != nil {
+			errorlog("BLACKHOLE_MAX_RETRIES=%s: ParseInt failed. Use default value(%d): %v", max_retries, MAX_RETRIES, err)
+		} else {
+			MAX_RETRIES = int(val)
+		}
 	}
 	sai := os.Getenv("BLACKHOLE_SLACK_API_INTERVAL")
 	if sai != "" {
@@ -353,6 +391,7 @@ func init() {
 	flag.IntVar(&DEFAULT_MESSAGE_TTL, "default-message-ttl", 0, "TTL of messages for all channel")
 	flag.IntVar(&DEFAULT_FILE_TTL, "default-file-ttl", 0, "TTL of files for all channel")
 	flag.BoolVar(&DRY_RUN, "dry-run", false, "Do not delete messages/files")
+	flag.IntVar(&MAX_RETRIES, "max-retries", 5, "Maximum number of retries for message/file deletion")
 	flag.IntVar(&SLACK_API_INTERVAL, "slack-api-interval", 3, "Interval (sec) for api call")
 	flag.StringVar(&SLACK_API_TOKEN, "slack-api-token", "", "Slack API token")
 	readEnv()
