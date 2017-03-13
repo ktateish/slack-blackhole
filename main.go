@@ -8,6 +8,7 @@ import (
 	logpkg "log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nlopes/slack"
@@ -270,65 +271,6 @@ func handleFileShared(file *slack.FileSharedEvent) {
 	handleFile(&file.File)
 }
 
-func readEnv() {
-	config_file := os.Getenv("BLACKHOLE_CONFIG_FILE")
-	if config_file != "" {
-		CONFIG_FILE = config_file
-	}
-	debug := os.Getenv("BLACKHOLE_DEBUG")
-	if debug != "" {
-		DEBUG = true
-	}
-	debug_slack := os.Getenv("BLACKHOLE_DEBUG_SLACK")
-	if debug_slack != "" {
-		DEBUG_SLACK = true
-	}
-	fileTTL := os.Getenv("BLACKHOLE_DEFAULT_FILE_TTL")
-	if fileTTL != "" {
-		val, err := strconv.ParseInt(fileTTL, 0, 0)
-		if err != nil {
-			errorlog("BLACKHOLE_DEFAULT_FILE_TTL=%s: ParseInt failed. Use default value(%d): %v", fileTTL, DEFAULT_FILE_TTL, err)
-		} else {
-			DEFAULT_FILE_TTL = int(val)
-		}
-	}
-	messageTTL := os.Getenv("BLACKHOLE_DEFAULT_MESSAGE_TTL")
-	if messageTTL != "" {
-		val, err := strconv.ParseInt(messageTTL, 0, 0)
-		if err != nil {
-			errorlog("BLACKHOLE_DEFAULT_MESSAGE_TTL=%s: ParseInt failed. Use default value(%d): %v", messageTTL, DEFAULT_MESSAGE_TTL, err)
-		} else {
-			DEFAULT_MESSAGE_TTL = int(val)
-		}
-	}
-	dry_run := os.Getenv("BLACKHOLE_DRY_RUN")
-	if dry_run != "" {
-		DRY_RUN = true
-	}
-	max_retries := os.Getenv("BLACKHOLE_MAX_RETRIES")
-	if max_retries != "" {
-		val, err := strconv.ParseInt(max_retries, 0, 0)
-		if err != nil {
-			errorlog("BLACKHOLE_MAX_RETRIES=%s: ParseInt failed. Use default value(%d): %v", max_retries, MAX_RETRIES, err)
-		} else {
-			MAX_RETRIES = int(val)
-		}
-	}
-	sai := os.Getenv("BLACKHOLE_SLACK_API_INTERVAL")
-	if sai != "" {
-		val, err := strconv.ParseInt(sai, 0, 0)
-		if err != nil {
-			errorlog("BLACKHOLE_SLACK_API_INTERVAL=%s: ParseInt failed. Use default value(%d): %v", sai, SLACK_API_INTERVAL, err)
-		} else {
-			SLACK_API_INTERVAL = int(val)
-		}
-	}
-	token := os.Getenv("BLACKHOLE_SLACK_API_TOKEN")
-	if token != "" {
-		SLACK_API_TOKEN = token
-	}
-}
-
 func inspectHistory(ch slack.Channel) {
 	var err error
 	h := &slack.History{HasMore: true}
@@ -383,6 +325,17 @@ func inspectPast() {
 	inspectFiles()
 }
 
+func setFromEnv(f *flag.Flag) {
+	envKey := "BLACKHOLE_" + strings.Replace(strings.ToUpper(f.Name), "-", "_", -1)
+	envVal := os.Getenv(envKey)
+	if envVal != "" {
+		err := flag.Set(f.Name, envVal)
+		if err != nil {
+			fatal("Cannot set flag %s=%s from environment %s: %v", f.Name, envVal, envKey, err)
+		}
+	}
+}
+
 func init() {
 	initLog()
 	flag.StringVar(&CONFIG_FILE, "config-file", "", "Configuration file")
@@ -394,7 +347,7 @@ func init() {
 	flag.IntVar(&MAX_RETRIES, "max-retries", 5, "Maximum number of retries for message/file deletion")
 	flag.IntVar(&SLACK_API_INTERVAL, "slack-api-interval", 3, "Interval (sec) for api call")
 	flag.StringVar(&SLACK_API_TOKEN, "slack-api-token", "", "Slack API token")
-	readEnv()
+	flag.VisitAll(setFromEnv)
 	CONFIG_BY_ID = make(map[string]Config)
 }
 
