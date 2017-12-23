@@ -12,8 +12,8 @@ stages:
 docker-build:
   stage: build
   script:
-    - wget -q https://storage.googleapis.com/golang/go1.7.5.linux-amd64.tar.gz
-    - tar zxvf go1.7.5.linux-amd64.tar.gz -C $HOME
+    - wget -q https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-amd64.tar.gz
+    - tar zxvf go1.9.2.linux-amd64.tar.gz -C $HOME
     - export GOROOT=$HOME/go
     - export PATH=$PATH:$GOROOT/bin
     - export GOPATH=$HOME/work
