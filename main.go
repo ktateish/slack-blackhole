@@ -69,15 +69,14 @@ func initApiThrottle() {
 }
 
 func initSlackRTMClient() {
-	slack.SetLogger(log)
-
 	if SLACK_API_TOKEN == "" {
 		fatal("BLACKHOLE_SLACK_API_TOKEN is not set")
 	}
 	debug("SLACK_API_TOKEN: %s", SLACK_API_TOKEN)
 	api := slack.New(SLACK_API_TOKEN)
+	slack.OptionLog(log)(api)
 	if DEBUG_SLACK {
-		api.SetDebug(true)
+		slack.OptionDebug(true)(api)
 	}
 	<-API_READY
 	RTM = api.NewRTM()
