@@ -356,7 +356,10 @@ func main() {
 	initSlackRTMClient()
 	initTTL()
 
-	inspectPast()
+	go func() {
+		inspectPast()
+		<-time.After(1 * time.Hour)
+	}()
 	for msg := range RTM.IncomingEvents {
 		switch ev := msg.Data.(type) {
 		//case *slack.HelloEvent:
