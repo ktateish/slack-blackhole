@@ -357,8 +357,10 @@ func main() {
 	initTTL()
 
 	go func() {
-		inspectPast()
-		<-time.After(1 * time.Hour)
+		for {
+			inspectPast()
+			<-time.After(1 * time.Hour)
+		}
 	}()
 	for msg := range RTM.IncomingEvents {
 		switch ev := msg.Data.(type) {
