@@ -272,11 +272,11 @@ func handleFileShared(file *slack.FileSharedEvent) {
 
 func inspectHistory(ch slack.Channel) {
 	var err error
-	h := &slack.History{HasMore: true}
-	params := slack.NewHistoryParameters()
+	h := &slack.GetConversationHistoryResponse{HasMore: true}
+	params := &slack.GetConversationHistoryParameters{ChannelID: ch.ID}
 	for h.HasMore {
 		<-API_READY
-		h, err = RTM.GetChannelHistory(ch.ID, params)
+		h, err = RTM.GetConversationHistory(params)
 		if err != nil {
 			fatal("GetChannelHistory(%s, %v) failed: %v", ch.ID, params, err)
 		}
