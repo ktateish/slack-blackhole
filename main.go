@@ -118,7 +118,7 @@ func initTTL() {
 
 	channels, _, err := RTM.GetConversations(&slack.GetConversationsParameters{})
 	if err != nil {
-		fatal("GetChannles failed: %v", err)
+		fatal("GetChanneles failed: %v", err)
 	}
 	channelId := make(map[string]string)
 	for _, ch := range channels {
