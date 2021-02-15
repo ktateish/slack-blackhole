@@ -116,7 +116,7 @@ func initTTL() {
 	}
 	info("Config: %v", cfgs)
 
-	channels, err := RTM.GetChannels(false)
+	channels, _, err := RTM.GetConversations(&slack.GetConversationsParameters{})
 	if err != nil {
 		fatal("GetChannles failed: %v", err)
 	}
@@ -309,7 +309,7 @@ func inspectFiles() {
 
 func inspectPast() {
 	<-API_READY
-	channels, err := RTM.GetChannels(true)
+	channels, _, err := RTM.GetConversations(&slack.GetConversationsParameters{})
 	if err != nil {
 		fatal("GetChannels() failed: %v", err)
 	}
