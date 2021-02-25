@@ -116,9 +116,9 @@ func initTTL() {
 	}
 	info("Config: %v", cfgs)
 
-	channels, err := RTM.GetChannels(false)
+	channels, err := getAllChannels(RTM)
 	if err != nil {
-		fatal("GetChannles failed: %v", err)
+		fatal("getting the list of channels failed: %v", err)
 	}
 	channelId := make(map[string]string)
 	for _, ch := range channels {
@@ -129,6 +129,23 @@ func initTTL() {
 		info("CONFIG_BY_ID[%s]: %v", channelId[cfg.Channel], cfg)
 		CONFIG_BY_ID[channelId[cfg.Channel]] = cfg
 	}
+}
+
+func getAllChannels(rtm *slack.RTM) ([]slack.Channel, error) {
+	params := &slack.GetConversationsParameters{}
+	var channels []slack.Channel
+	for cont := true; cont; {
+		chs, nextCursor, err := rtm.GetConversations(params)
+		if err != nil {
+			return nil, fmt.Errorf("GetConversations: %w", err)
+		}
+		channels = append(channels, chs...)
+		params.Cursor = nextCursor
+		if nextCursor == "" {
+			cont = false
+		}
+	}
+	return channels, nil
 }
 
 func unixTime(s string) (time.Time, error) {
@@ -271,21 +288,25 @@ func handleFileShared(file *slack.FileSharedEvent) {
 }
 
 func inspectHistory(ch slack.Channel) {
-	var err error
-	h := &slack.History{HasMore: true}
-	params := slack.NewHistoryParameters()
-	for h.HasMore {
+	params := &slack.GetConversationHistoryParameters{
+		ChannelID: ch.ID,
+	}
+	var msgs []slack.Message
+	for cont := true; cont; {
 		<-API_READY
-		h, err = RTM.GetChannelHistory(ch.ID, params)
+		res, err := RTM.GetConversationHistory(params)
 		if err != nil {
-			fatal("GetChannelHistory(%s, %v) failed: %v", ch.ID, params, err)
+			fatal("GetConversationHistory() for %s failed: %v", ch.ID, err)
 		}
-		for i := 0; i < len(h.Messages); i++ {
-			handleMessage(ch.ID, &h.Messages[i])
+		msgs = append(msgs, res.Messages...)
+		params.Cursor = res.ResponseMetaData.NextCursor
+		if params.Cursor == "" {
+			cont = false
 		}
-		if len(h.Messages) > 0 {
-			params.Latest = h.Messages[len(h.Messages)-1].Timestamp
-		}
+	}
+
+	for i := 0; i < len(msgs); i++ {
+		handleMessage(ch.ID, &msgs[i])
 	}
 }
 
@@ -309,9 +330,9 @@ func inspectFiles() {
 
 func inspectPast() {
 	<-API_READY
-	channels, err := RTM.GetChannels(true)
+	channels, err := getAllChannels(RTM)
 	if err != nil {
-		fatal("GetChannels() failed: %v", err)
+		fatal("getting the list of channels failed: %v", err)
 	}
 	info("There are %d channels", len(channels))
 	for _, ch := range channels {
